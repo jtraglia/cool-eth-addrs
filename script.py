@@ -6,6 +6,8 @@ from mnemonic import Mnemonic
 
 import multiprocessing
 import string
+import sys
+import time
 
 ###############################################################################
 # Globals
@@ -77,10 +79,22 @@ def generate_addr():
       print("specific", addr)
       write_to_disk(addr, words)
 
-def forever_generate_addrs():
+def forever_generate_addrs(counter):
   try:
     while True:
       generate_addr()
+      with counter.get_lock():
+        counter.value += 1
+  except KeyboardInterrupt:
+    pass
+
+def print_rate(counter):
+  try:
+    while True:
+      time.sleep(1)
+      with counter.get_lock():
+        print(f" >>> {counter.value} addrs/second", end="\r")
+        counter.value = 0
   except KeyboardInterrupt:
     pass
 
@@ -88,9 +102,16 @@ if __name__ == "__main__":
   cpu_count = multiprocessing.cpu_count()
   print(f"Starting {cpu_count} threads...")
 
+  counter = multiprocessing.Value("i", 0)
+
   procs = []
+
+  print_proc = multiprocessing.Process(target=print_rate, args=(counter,))
+  procs.append(print_proc)
+  print_proc.start()
+
   for i in range(cpu_count):
-    proc = multiprocessing.Process(target=forever_generate_addrs)
+    proc = multiprocessing.Process(target=forever_generate_addrs, args=(counter,))
     procs.append(proc)
     proc.start()
 
