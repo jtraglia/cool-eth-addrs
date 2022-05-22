@@ -4,6 +4,7 @@ from bip44 import Wallet
 from bip44.utils import get_eth_addr
 from mnemonic import Mnemonic
 
+import multiprocessing
 import string
 
 ###############################################################################
@@ -76,6 +77,25 @@ def generate_addr():
       print("specific", addr)
       write_to_disk(addr, words)
 
+def forever_generate_addrs():
+  try:
+    while True:
+      generate_addr()
+  except KeyboardInterrupt:
+    pass
+
 if __name__ == "__main__":
-  while True:
-    generate_addr()
+  cpu_count = multiprocessing.cpu_count()
+  print(f"Starting {cpu_count} threads...")
+
+  procs = []
+  for i in range(cpu_count):
+    proc = multiprocessing.Process(target=forever_generate_addrs)
+    procs.append(proc)
+    proc.start()
+
+  try:
+    for proc in procs:
+      proc.join()
+  except KeyboardInterrupt:
+    print("\nGoodbye!")
